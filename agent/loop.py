@@ -16,10 +16,12 @@ from agent.classifier import (
     detect_login_fields,
     detect_logout_target,
     detect_registration_fields,
+    detect_search_fields,
     get_contact_action,
     get_login_action,
     get_logout_action,
     get_registration_action,
+    get_search_action,
 )
 from agent.prompts import (
     build_system_prompt,
@@ -28,7 +30,7 @@ from agent.prompts import (
 )
 from agent.state import check_loop, clear_task_state, get_action_signature
 from llm.client import LLMClient
-from llm.parser import parse_llm_json
+from llm.parser import normalize_decision, parse_llm_json
 from models.actions import WaitAction
 from models.request import ActRequest
 from models.response import ActResponse
@@ -68,7 +70,7 @@ def _build_history_lines(history: list[dict]) -> list[str]:
             result = "success"
         else:
             error = entry.get("error", "failed")
-            result = f"error: {error}"
+            result = f"FAILED: {error}"
 
         # Check if URL changed from previous entry
         url_changed = None
@@ -217,6 +219,23 @@ def decide(request: ActRequest) -> ActResponse:
                     )
                     return ActResponse(actions=[action])
 
+    if task_type == TaskType.SEARCH:
+        search_fields = detect_search_fields(candidates)
+        if search_fields is not None:
+            action_dict = get_search_action(request.step_index, search_fields)
+            if action_dict is not None:
+                action = build_action(action_dict, candidates, request.url)
+                if action is not None:
+                    logger.info(
+                        "hardcoded search action",
+                        extra={
+                            "task_id": request.task_id,
+                            "step_index": request.step_index,
+                            "action_type": type(action).__name__,
+                        },
+                    )
+                    return ActResponse(actions=[action])
+
     # 4. Build compact Page IR
     page_ir = build_page_ir(pruned_soup, request.url, title, candidates)
 
@@ -228,10 +247,12 @@ def decide(request: ActRequest) -> ActResponse:
 
     # 7. Loop detection -- use last action sig from history
     loop_hint: str | None = None
+    last_action_failed = False
     if request.history:
         last_entry = request.history[-1]
         last_sig = get_action_signature(last_entry)
         loop_hint = check_loop(request.task_id, request.url, last_sig)
+        last_action_failed = not last_entry.get("exec_ok", True)
 
     # 8. Build LLM messages
     system_msg = build_system_prompt()
@@ -241,6 +262,7 @@ def decide(request: ActRequest) -> ActResponse:
         history_lines=history_lines,
         steps_remaining=steps_remaining,
         loop_hint=loop_hint,
+        last_action_failed=last_action_failed,
     )
 
     messages = [
@@ -281,7 +303,14 @@ def decide(request: ActRequest) -> ActResponse:
 
             # 11. Parse response
             content = resp["choices"][0]["message"]["content"]
-            decision = parse_llm_json(content)
+            raw_decision = parse_llm_json(content)
+            decision = normalize_decision(raw_decision)
+            if decision is None:
+                logger.warning(
+                    "LLM decision validation failed, using fallback",
+                    extra={"task_id": request.task_id},
+                )
+                break
 
             # 12. Build action (validate_and_fix is called inside build_action)
             action = build_action(

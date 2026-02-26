@@ -14,6 +14,10 @@ from __future__ import annotations
 SYSTEM_PROMPT = """\
 You are a web automation agent. You receive a task, page state, and interactive elements. Choose ONE action and return JSON only.
 
+Think step by step. Only return "done" when the task is clearly achieved (e.g. a confirmation message is visible, or the goal stated in the task is satisfied). Do not assume submission or navigation succeeded without evidence from the page.
+
+Use the direct URL when the task gives one. For forms: fill required fields then click submit; do not assume submission succeeded without evidence. If the last step failed (see HISTORY), try a different element or action. Avoid repeating the same candidate_id if the previous action failed.
+
 Actions:
 - {"action":"click","candidate_id":N}
 - {"action":"type","candidate_id":N,"text":"..."}
@@ -74,16 +78,25 @@ def build_user_prompt(
     history_lines: list[str],
     steps_remaining: int,
     loop_hint: str | None = None,
+    last_action_failed: bool = False,
 ) -> str:
     """Build the user message for the LLM.
 
     Includes task description, page IR (URL, title, page structure,
     interactive elements), action history, steps remaining with urgency,
-    and optional loop-detection warning.
+    optional loop-detection warning, and optional last-action-failed hint.
     """
     history_text = "\n".join(history_lines) if history_lines else "No actions yet"
 
-    parts = [
+    # Task context: first sentence of task so the model keeps the goal in mind
+    task_context = task_prompt.strip().split(".")[0].strip()
+    if not task_context:
+        task_context = task_prompt.strip()[:120] if task_prompt.strip() else ""
+
+    parts = []
+    if task_context:
+        parts.append(f"TASK CONTEXT: {task_context}")
+    parts.extend([
         f"TASK: {task_prompt}",
         "",
         page_ir,
@@ -91,13 +104,17 @@ def build_user_prompt(
         "HISTORY:",
         history_text,
         "",
-    ]
+    ])
 
     # Steps remaining with urgency at 3 or fewer
     steps_line = f"STEPS REMAINING: {steps_remaining}"
     if steps_remaining <= 3:
         steps_line += " -- Take the most direct action to complete the task."
     parts.append(steps_line)
+
+    if last_action_failed:
+        parts.append("")
+        parts.append("Last action failed. Try a different action or element.")
 
     if loop_hint:
         parts.append("")

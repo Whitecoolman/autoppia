@@ -23,6 +23,7 @@ class TaskType(str, Enum):
     LOGIN = "login"
     REGISTRATION = "registration"
     CONTACT = "contact"
+    SEARCH = "search"
     NAVIGATION = "navigation"
     CRUD = "crud"
     FORM = "form"
@@ -60,6 +61,15 @@ _TASK_PATTERNS: list[tuple[re.Pattern[str], TaskType]] = [
             re.IGNORECASE,
         ),
         TaskType.CONTACT,
+    ),
+    # Search (must precede NAVIGATION so "search for X" is not treated as navigation)
+    (
+        re.compile(
+            r"\bsearch\s+(?:for)?\b|\bfind\b.*\b(?:on\s+)?(?:this\s+)?(?:page|site)\b"
+            r"|\blook\s+up\b|\bquery\b",
+            re.IGNORECASE,
+        ),
+        TaskType.SEARCH,
     ),
     (
         re.compile(
@@ -364,6 +374,88 @@ def get_registration_action(step_index: int, fields: RegistrationFields) -> dict
 
     if step_index < len(steps):
         return steps[step_index]
+    return None
+
+
+# =========================================================================
+# Search shortcut
+# =========================================================================
+
+
+@dataclass
+class SearchFields:
+    """Identified search input and submit button candidate IDs."""
+
+    search_input_id: int
+    submit_id: int
+
+
+def detect_search_fields(candidates: list[Candidate]) -> SearchFields | None:
+    """Detect a search input and submit button in candidates.
+
+    Returns ``SearchFields`` if both are found, ``None`` otherwise.
+    Search input: input[type=search] or input[type=text] with label/placeholder
+    containing 'search'. Submit: button or input[type=submit] with label
+    containing 'search', 'go', 'submit', etc.
+    """
+    search_input_id: int | None = None
+    submit_id: int | None = None
+
+    for c in candidates:
+        label_ph = (c.label or c.text or c.placeholder or "").lower()
+        if c.tag == "input" and c.input_type in ("search", "text", ""):
+            if "search" in label_ph or "query" in label_ph:
+                if search_input_id is None:
+                    search_input_id = c.id
+                    break
+
+    if search_input_id is None:
+        # Fallback: first text/search input
+        for c in candidates:
+            if c.tag == "input" and c.input_type in ("search", "text", ""):
+                search_input_id = c.id
+                break
+
+    for c in candidates:
+        if c.tag in ("button", "input") and (
+            (c.tag == "input" and c.input_type == "submit") or c.tag == "button"
+        ):
+            label_lower = (c.label or c.text or "").lower()
+            if any(
+                kw in label_lower
+                for kw in ("search", "go", "submit", "find", "query")
+            ):
+                submit_id = c.id
+                break
+
+    if search_input_id is not None and submit_id is not None:
+        return SearchFields(
+            search_input_id=search_input_id,
+            submit_id=submit_id,
+        )
+    return None
+
+
+def get_search_action(step_index: int, fields: SearchFields) -> dict | None:
+    """Return the hard-coded action dict for a search sequence step.
+
+    Steps:
+        0: Type <search_query> into the search input.
+        1: Click the submit button.
+
+    Returns ``None`` when step_index >= 2.
+    """
+    if step_index == 0:
+        return {
+            "action": "type",
+            "candidate_id": fields.search_input_id,
+            "text": "<search_query>",
+        }
+    if step_index == 1:
+        return {
+            "action": "click",
+            "candidate_id": fields.submit_id,
+        }
     return None
 
 

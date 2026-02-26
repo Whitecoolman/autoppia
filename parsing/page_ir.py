@@ -61,6 +61,14 @@ def _format_candidate_compact(c: Candidate) -> str:
     # Parenthetical metadata (only present items, in order)
     meta: list[str] = []
 
+    # Role and aria-label for disambiguation (crypto-style)
+    role = c.attrs.get("role", "")
+    if role:
+        meta.append(f"role={role[:30]}")
+    aria_label = c.attrs.get("aria-label", "")
+    if aria_label:
+        meta.append(f"aria-label={aria_label[:40]}")
+
     sel_attr = c.selector.get("attribute", "")
     sel_val = c.selector.get("value", "")
     if sel_attr and sel_val and sel_attr != "custom":
@@ -68,6 +76,9 @@ def _format_candidate_compact(c: Candidate) -> str:
 
     if c.parent_form:
         meta.append(f"form={c.parent_form}")
+
+    if c.placeholder:
+        meta.append(f"placeholder={c.placeholder[:40]}")
 
     if c.current_value:
         meta.append(f"val={c.current_value[:30]}")

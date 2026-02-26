@@ -1,12 +1,18 @@
 """Robust JSON parsing for LLM response text.
 
 Handles markdown code fences, preamble text, and trailing commentary
-that LLMs commonly add around JSON output.
+that LLMs commonly add around JSON output. Optionally validates and
+coerces the parsed dict via a Pydantic model.
 """
 
 from __future__ import annotations
 
 import json
+from typing import Any
+
+from pydantic import ValidationError
+
+from models.decision import LLMDecision
 
 
 def parse_llm_json(content: str) -> dict:
@@ -64,3 +70,19 @@ def parse_llm_json(content: str) -> dict:
             pass
 
     raise ValueError(f"LLM returned non-JSON: {raw[:200]}")
+
+
+def normalize_decision(raw: dict[str, Any]) -> dict[str, Any] | None:
+    """Validate and coerce the parsed LLM decision dict.
+
+    Ensures required 'action' is present and coerces candidate_id to int.
+    Ignores extra keys. Returns a dict suitable for build_action, or None
+    on validation failure (caller should use fallback without retrying LLM).
+    """
+    if not isinstance(raw, dict) or "action" not in raw:
+        return None
+    try:
+        decision = LLMDecision.model_validate(raw)
+        return decision.model_dump(exclude_none=False)
+    except ValidationError:
+        return None

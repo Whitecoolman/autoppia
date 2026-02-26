@@ -7,6 +7,7 @@ with field inference for missing text on credential and select fields.
 
 from __future__ import annotations
 
+import re
 from typing import TYPE_CHECKING
 from urllib.parse import parse_qs, urlencode, urlsplit, urlunsplit
 
@@ -188,6 +189,12 @@ def validate_and_fix(
                 label_lower = (candidate.label or "").lower()
                 if "user" in label_lower or "email" in label_lower:
                     return {**decision, "text": "<username>"}
+                # Date/placeholder: use placeholder if it looks like a concrete date
+                if candidate.input_type == "date" and candidate.placeholder:
+                    if re.match(r"\d{4}-\d{2}-\d{2}", candidate.placeholder.strip()):
+                        return {**decision, "text": candidate.placeholder.strip()}
+                if candidate.placeholder and "@" in candidate.placeholder:
+                    return {**decision, "text": "<username>"}
                 # Ambiguous -- discard
                 return None
             return decision
@@ -229,8 +236,15 @@ def build_action(
     # Pre-validate and infer missing fields
     fixed = validate_and_fix(decision, candidates)
     if fixed is None:
-        # Smarter fallback: click first candidate in early steps
+        # Early steps: prefer submit/login button over first candidate or scroll
         if step_index < 5 and candidates:
+            submit_keywords = ("submit", "log in", "sign in", "login", "signin")
+            for c in candidates:
+                label = (c.label or c.text or "").lower()
+                if any(kw in label for kw in submit_keywords):
+                    selector = _selector_from_dict(c.selector)
+                    return ClickAction(type="ClickAction", selector=selector)
+            # No submit button: click first candidate
             selector = _selector_from_dict(candidates[0].selector)
             return ClickAction(type="ClickAction", selector=selector)
         # Late steps: scroll is safer
