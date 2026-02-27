@@ -148,8 +148,8 @@ def build_page_ir(
         if text:
             lines.append(f"  {h.name}: {text}")
 
-    # Body visible text summary
-    body_text = soup_copy.get_text(" ", strip=True)[:500]
+    # Body visible text summary (kept short for quick solving)
+    body_text = soup_copy.get_text(" ", strip=True)[:350]
     if body_text:
         lines.append(f"TEXT: {body_text}")
 

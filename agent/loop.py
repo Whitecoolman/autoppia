@@ -236,8 +236,11 @@ def decide(request: ActRequest) -> ActResponse:
                     )
                     return ActResponse(actions=[action])
 
-    # 4. Build compact Page IR
-    page_ir = build_page_ir(pruned_soup, request.url, title, candidates)
+    # 4. Build compact Page IR (smaller budget = faster LLM round-trip)
+    page_ir = build_page_ir(
+        pruned_soup, request.url, title, candidates,
+        max_tokens=900,
+    )
 
     # 5. Compute steps remaining
     steps_remaining = max(1, 12 - request.step_index)
@@ -273,15 +276,16 @@ def decide(request: ActRequest) -> ActResponse:
     # 9. Get LLM client
     client = _get_llm_client()
 
-    # Retry state -- only retry on JSON parse failure
-    max_retries = 1  # At most 1 retry (2 LLM calls total)
+    # Retry state -- only retry on JSON parse failure (0 = single call for quick solving)
+    max_retries = 0
 
     for attempt in range(max_retries + 1):
         try:
-            # 9. Call LLM
+            # 9. Call LLM (smaller max_tokens = faster completion)
             resp = client.chat_completions(
                 task_id=request.task_id,
                 messages=messages,
+                max_tokens=256,
             )
 
             # 10. Log cost from usage object

@@ -34,7 +34,7 @@ class LLMClient:
     on 429 / 5xx errors with exponential backoff.
     """
 
-    def __init__(self, timeout: float = 25.0) -> None:
+    def __init__(self, timeout: float = 20.0) -> None:
         self.base_url: str = os.getenv(
             "OPENAI_BASE_URL", "https://api.openai.com/v1"
         ).rstrip("/")
