@@ -18,7 +18,6 @@ from models.actions import (
     ScrollAction,
     SelectDropDownOptionAction,
     TypeAction,
-    WaitAction,
 )
 from models.selectors import (
     AttributeValueSelector,

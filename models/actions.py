@@ -58,15 +58,6 @@ class ScrollAction(BaseModel):
     up: bool = False
 
 
-class WaitAction(BaseModel):
-    """Wait for a specified duration (seconds)."""
-
-    model_config = ConfigDict(extra="forbid")
-
-    type: Literal["WaitAction"]
-    time_seconds: float = 1.0
-
-
 ActionUnion = Annotated[
     Union[
         ClickAction,
@@ -74,7 +65,6 @@ ActionUnion = Annotated[
         SelectDropDownOptionAction,
         NavigateAction,
         ScrollAction,
-        WaitAction,
     ],
     Field(discriminator="type"),
 ]

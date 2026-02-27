@@ -7,7 +7,6 @@ from models.actions import (
     ScrollAction,
     SelectDropDownOptionAction,
     TypeAction,
-    WaitAction,
 )
 from models.request import ActRequest
 from models.response import ActResponse
@@ -37,7 +36,6 @@ __all__ = [
     "SelectDropDownOptionAction",
     "NavigateAction",
     "ScrollAction",
-    "WaitAction",
     "ActionUnion",
     # Request/Response
     "ActRequest",

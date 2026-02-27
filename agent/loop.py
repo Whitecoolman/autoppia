@@ -31,7 +31,7 @@ from agent.prompts import (
 from agent.state import check_loop, clear_task_state, get_action_signature
 from llm.client import LLMClient
 from llm.parser import normalize_decision, parse_llm_json
-from models.actions import WaitAction
+from models.actions import ScrollAction
 from models.request import ActRequest
 from models.response import ActResponse
 from parsing.candidates import extract_candidates
@@ -108,7 +108,7 @@ def decide(request: ActRequest) -> ActResponse:
 
     Returns:
         An ``ActResponse`` with the chosen action(s), or empty actions
-        for "done" signal, or a WaitAction fallback on exhausted retries.
+        for "done" signal, or a ScrollAction fallback on exhausted retries.
     """
     # 1. Prune HTML (single parse -- replaces dual-parse pattern)
     pruned_soup = prune_html(request.snapshot_html)
@@ -356,9 +356,9 @@ def decide(request: ActRequest) -> ActResponse:
             # Fall through to fallback below
             break
 
-    # 16. All retries exhausted -- return WaitAction fallback
+    # 16. All retries exhausted -- return ScrollAction fallback
     logger.warning(
         "all retries exhausted, returning fallback",
         extra={"task_id": request.task_id},
     )
-    return ActResponse(actions=[WaitAction(type="WaitAction", time_seconds=1.0)])
+    return ActResponse(actions=[ScrollAction(type="ScrollAction", down=True)])

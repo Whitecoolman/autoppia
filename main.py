@@ -65,19 +65,19 @@ app = FastAPI(title="Autoppia Web Agent")
 # Global exception handler -- agent must NEVER crash
 # ---------------------------------------------------------------------------
 
-SAFE_WAIT_RESPONSE = {"actions": [{"type": "WaitAction", "time_seconds": 1.0}]}
+SAFE_FALLBACK_RESPONSE = {"actions": [{"type": "ScrollAction", "down": True}]}
 
 
 @app.exception_handler(Exception)
 async def catch_all_handler(request: Request, exc: Exception) -> JSONResponse:
-    """Catch all unhandled exceptions and return a safe WaitAction."""
+    """Catch all unhandled exceptions and return a safe ScrollAction fallback."""
     logger.error(
         "Unhandled exception: %s: %s\n%s",
         type(exc).__name__,
         exc,
         traceback.format_exc(),
     )
-    return JSONResponse(status_code=200, content=SAFE_WAIT_RESPONSE)
+    return JSONResponse(status_code=200, content=SAFE_FALLBACK_RESPONSE)
 
 
 # ---------------------------------------------------------------------------

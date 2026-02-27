@@ -18,7 +18,7 @@ def get_action_signature(decision: dict) -> str:
     Returns:
         ``"{action}:{candidate_id}"`` for click/type/select,
         ``"{action}:{url}"`` for navigate,
-        ``"{action}"`` for scroll/done/wait.
+        ``"{action}"`` for scroll/done.
     """
     action = decision.get("action", "unknown")
     if action in ("click", "type", "select"):
