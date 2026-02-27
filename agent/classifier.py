@@ -27,6 +27,12 @@ class TaskType(str, Enum):
     NAVIGATION = "navigation"
     CRUD = "crud"
     FORM = "form"
+    CHECKOUT = "checkout"
+    PROFILE = "profile"
+    SUBSCRIBE = "subscribe"
+    DOWNLOAD = "download"
+    SHARE = "share"
+    BOOKING = "booking"
     UNKNOWN = "unknown"
 
 
@@ -92,6 +98,48 @@ _TASK_PATTERNS: list[tuple[re.Pattern[str], TaskType]] = [
             re.IGNORECASE,
         ),
         TaskType.FORM,
+    ),
+    (
+        re.compile(
+            r"\bcheckout\b|\badd\s+to\s+cart\b|\bshopping\s+cart\b|\bplace\s+order\b|\bpay\s+now\b",
+            re.IGNORECASE,
+        ),
+        TaskType.CHECKOUT,
+    ),
+    (
+        re.compile(
+            r"\b(profile|account\s+settings?|preferences?|edit\s+profile\b|my\s+account\b)\b",
+            re.IGNORECASE,
+        ),
+        TaskType.PROFILE,
+    ),
+    (
+        re.compile(
+            r"\bsubscribe\b|\bnewsletter\b|\bsign\s+up\s+for\b.*\b(?:email|updates)\b",
+            re.IGNORECASE,
+        ),
+        TaskType.SUBSCRIBE,
+    ),
+    (
+        re.compile(
+            r"\bdownload\b|\bsave\s+as\b.*\b(?:file|pdf)\b|\bget\s+the\s+(?:file|document|pdf)\b",
+            re.IGNORECASE,
+        ),
+        TaskType.DOWNLOAD,
+    ),
+    (
+        re.compile(
+            r"\bshare\b.*\b(?:on|to|via)\b|\bshare\s+(?:this|the)\b|\bpost\s+to\s+(?:social|twitter|facebook)\b",
+            re.IGNORECASE,
+        ),
+        TaskType.SHARE,
+    ),
+    (
+        re.compile(
+            r"\bbook\b.*\b(?:room|table|ticket|appointment)\b|\breserv(e|ation)\b|\bschedule\s+an?\b",
+            re.IGNORECASE,
+        ),
+        TaskType.BOOKING,
     ),
     (
         re.compile(
